@@ -286,4 +286,43 @@ router.put('/:id/location', async (req, res) => {
   }
 });
 
+
+router.get('/parcels/:driverId', async (req, res) => {
+    try {
+        const { driverId } = req.params;
+
+        // Find the admin containing the driver and their parcels
+        const adminData = await Admin.findOne({
+            'drivers.driverId': driverId,
+        }).select('drivers.$');
+
+        if (!adminData || adminData.drivers.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Driver not found or no parcels assigned to this driver.',
+            });
+        }
+
+        // Extract parcels for the given driver
+        const driver = adminData.drivers[0];
+        const parcels = driver.parcels;
+
+        res.status(200).json({
+            success: true,
+            driver: {
+                driverId: driver.driverId,
+                driverName: driver.driverName,
+                driverPhone: driver.driverPhone,
+            },
+            parcels,
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+});
+
+
 module.exports = router;

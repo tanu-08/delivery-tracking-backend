@@ -26,6 +26,7 @@ app.use('/api/driver/auth', require('./routes/driverSignUpLoginroutes'));
 app.use('/api/threePL/auth',require('./routes/threePLAuthRoutes'));
 app.use('/api/fleetOwner/auth',require('./routes/fleetOwnerRoutes'));
 app.use('/api/trucks',require('./routes/truckRoutes'));
+app.use('/api/routeOptimization',require('./routes/routeOptimization'));
 
 // Start Server
 const PORT = process.env.PORT || 5001;

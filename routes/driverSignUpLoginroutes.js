@@ -55,19 +55,13 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 // Driver Login API
 router.post('/login', async (req, res) => {
-    const { email, password } = req.body;
+    const { phone } = req.body;
 
     try {
-        // Find driver by email
-        const driver = await DriverSignUp.findOne({ email });
+        // Find driver by phone
+        const driver = await DriverSignUp.findOne({ phone });
         if (!driver) {
-            return res.status(400).json({ error: "Invalid email or password" });
-        }
-
-        // Check password
-        const isMatch = await bcrypt.compare(password, driver.password);
-        if (!isMatch) {
-            return res.status(400).json({ error: "Invalid email or password" });
+            return res.status(400).json({ error: "Driver not found" });
         }
 
         // Generate JWT Token
@@ -82,13 +76,18 @@ router.post('/login', async (req, res) => {
                 name: driver.name,
                 email: driver.email,
                 phone: driver.phone,
-                address: driver.address
+                address: driver.address,
+                licenseNumber: driver.licenseNumber, // Add additional fields as needed
+                vehicleDetails: driver.vehicleDetails, // Example: vehicle type, number, etc.
+                route: driver.route // Include any assigned route details if applicable
             }
         });
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: "Server error" });
     }
 });
+
 
 
 

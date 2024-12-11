@@ -74,6 +74,7 @@ router.post('/checkin', async (req, res) => {
         truck.availability = truck.availableCapacity > 0;
 
         // Mark driver as assigned
+        truck.isAssigned == true;
         driver.isAssigned = true;
 
         // Save updates for driver and truck

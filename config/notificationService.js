@@ -64,6 +64,8 @@ const sendNotification = async ({ type, to, subject, message }) => {
     }
 };
 
+
+
 module.exports = {
     sendNotification,
 };
