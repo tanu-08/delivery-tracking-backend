@@ -1,54 +1,89 @@
 const express = require('express');
 const axios = require('axios');
-const { Driver} = require('../models/Driver'); // Assuming you have models for Driver and Parcel
-const {Parcel}  = require('../models/Parcel');
+const Driver = require('../models/Driver'); // Assuming you have models for Driver and Parcel
+const Parcel  = require('../models/Parcel');
 const { sendNotification } = require('../config/sendNotification'); // Utility for sending notifications
 
 const router = express.Router();
-const googleApiKey = process.env.GOOGLE_MAPS_API_KEY;
+const googleApiKey = "AIzaSyDA6s3MJhCn_IwerOJgGOmWcruauxAxcxU";
 
 router.post('/assignRoute', async (req, res) => {
     try {
         const { driverId, parcels } = req.body;
-        const driver = await Driver.findById(driverId);
+        console.log(driverId);
 
+        // Fetch driver details
+        const driver = await Driver.findOne({ phone: driverId });
         if (!driver) {
             return res.status(404).json({ success: false, message: "Driver not found" });
         }
 
-        const locations = [driver.location, ...parcels.map(p => p.pickupLocation), ...parcels.map(p => p.dropoffLocation)];
+        // Function to get latitude and longitude from address
+        async function getLatLngFromAddress(address) {
+            const geocodeUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&addressdetails=1`;
+            const response = await axios.get(geocodeUrl);
 
-        // Call Google Directions API to get optimized route
-        const waypoints = locations.slice(1, -1).join('|');
-        const origin = locations[0];
-        const destination = locations[locations.length - 1];
+            if (response.data.length > 0) {
+                const location = response.data[0];
+                return {
+                    latitude: parseFloat(location.lat),
+                    longitude: parseFloat(location.lon),
+                };
+            } else {
+                throw new Error(`Geocoding failed for address: ${address}`);
+            }
+        }
 
-        const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&waypoints=optimize:true|${waypoints}&key=${googleApiKey}`;
-        const response = await axios.get(url);
+        // Convert driver location (baseLocation) to lat/lng
+        const driverLocation = await getLatLngFromAddress(driver.baseLocation);
 
+        // Convert pickup and dropoff locations to lat/lng
+        const locations = [
+            driverLocation, // Start with the driver's location
+            ...await Promise.all(parcels.map(async (p) => {
+                const pickupLocation = await getLatLngFromAddress(p.pickupLocation);
+                const dropoffLocation = await getLatLngFromAddress(p.dropoffLocation);
+                return [pickupLocation, dropoffLocation];
+            })).then((locations) => locations.flat()) // Flatten the array of locations
+        ];
+
+        console.log('Locations:', locations);
+
+        // Construct the waypoints for the OSRM API
+        const coordinates = locations.map(loc => `${loc.longitude},${loc.latitude}`).join(';');
+        const osrmUrl = `http://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson`;
+
+        console.log('Final OSRM API URL:', osrmUrl);
+
+        // Call the OSRM API to calculate the best route
+        const response = await axios.get(osrmUrl);
+
+        if (!response.data.routes || !response.data.routes.length) {
+            throw new Error('Failed to get a valid route from OSRM API.');
+        }
+
+        // Process the route response
         const optimizedRoute = response.data.routes[0];
-        const routeDetails = optimizedRoute.legs.map(leg => ({
-            startLocation: leg.start_address,
-            endLocation: leg.end_address,
-            duration: leg.duration.text,
-            distance: leg.distance.text,
+        const waypoints = optimizedRoute.legs.map((leg, index) => ({
+            startLocation: locations[index],
+            endLocation: locations[index + 1],
+            duration: leg.duration,
+            distance: leg.distance,
         }));
-
-        // Save route details in DB and assign to the driver
-        driver.route = optimizedRoute;
-        await driver.save();
 
         res.status(200).json({
             success: true,
-            route: routeDetails,
-            totalDistance: optimizedRoute.legs.reduce((acc, leg) => acc + leg.distance.value, 0),
-            totalDuration: optimizedRoute.legs.reduce((acc, leg) => acc + leg.duration.value, 0),
+            route: waypoints,
+            totalDistance: optimizedRoute.distance, // Total distance in meters
+            totalDuration: optimizedRoute.duration, // Total duration in seconds
         });
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: error.message });
     }
 });
+
+
 
 // Track driver's location and notify if off-route
 router.post('/trackDriver', async (req, res) => {

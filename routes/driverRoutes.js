@@ -1,6 +1,8 @@
 const express = require('express');
 const Truck = require('../models/Truck');
 const Driver = require('../models/Driver');
+const Admin = require('../models/Admin');
+const Parcel = require('../models/Parcel');
 const router = express.Router();
 const DriverTruckCapacity = require('../models/DriverTruckCapacity');
 const FleetOwnerAuth = require('../models/FleetOwnerAuth');
@@ -293,7 +295,7 @@ router.get('/parcels/:driverId', async (req, res) => {
 
         // Find the admin containing the driver and their parcels
         const adminData = await Admin.findOne({
-            'drivers.driverId': driverId,
+            'drivers.driverPhone': driverId,
         }).select('drivers.$');
 
         if (!adminData || adminData.drivers.length === 0) {
@@ -305,7 +307,8 @@ router.get('/parcels/:driverId', async (req, res) => {
 
         // Extract parcels for the given driver
         const driver = adminData.drivers[0];
-        const parcels = driver.parcels;
+        const parcelIds = driver.parcels.map(parcel => parcel.parcelDetails);
+        const parcels = await Parcel.find({ _id: { $in: parcelIds } });
 
         res.status(200).json({
             success: true,

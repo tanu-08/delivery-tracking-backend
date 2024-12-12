@@ -5,6 +5,7 @@ const QRCode = require('qrcode');
 const router = express.Router();
 const Parcel = require('../models/Parcel');
 const Driver = require('../models/Driver');
+const AdminData = require('../models/AdminLoginSignUp');
 const DriverData = require('../models/DriverSignUp');
 const Route = require('../models/Route');
 const DriverTruckCapacity = require('../models/DriverTruckCapacity');
@@ -277,20 +278,22 @@ router.post("/sendParcelDetails", async (req, res) => {
     }
 });
 
-router.get('/receiving-deliveries', async (req, res) => {
+router.post('/receiving-deliveries', async (req, res) => {
     try {
         // Fetch the admin's address using adminPhone (from request body)
         const { adminPhone } = req.body;
-        const admin = await Admin.findOne({ phone: adminPhone });
+        const admin = await AdminData.findOne({ phone: adminPhone });
         if (!admin) {
             return res.status(404).json({ message: 'Admin not found' });
         }
-
+        console.log("ReceiveParcels:",admin);
         // Find all parcels whose drop-off location matches the admin's address
         const receivingDeliveries = await Parcel.find({
             dropOffLocation: admin.address, // Match drop-off location with admin's address
             status: { $in: ['In_Transit', 'Delivered'] }, // Filter for parcels that are in transit or delivered
-        }).populate('driverId'); // Populate driver details
+        }).populate('driverId');
+        console.log("ReceiveParcels:",receivingDeliveries);
+
 
         if (receivingDeliveries.length === 0) {
             return res.status(404).json({ message: 'No receiving deliveries found' });

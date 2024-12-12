@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const DriverSignUp = require('../models/DriverSignUp');
+const Driver = require('../models/Driver');
 const router = express.Router();
 const DriverTruckCapacity = require('../models/DriverTruckCapacity');
 
@@ -59,7 +60,7 @@ router.post('/login', async (req, res) => {
 
     try {
         // Find driver by phone
-        const driver = await DriverSignUp.findOne({ phone });
+        const driver = await Driver.findOne({ phone });
         if (!driver) {
             return res.status(400).json({ error: "Driver not found" });
         }
