@@ -291,7 +291,7 @@ router.post('/receiving-deliveries', async (req, res) => {
         const receivingDeliveries = await Parcel.find({
             dropOffLocation: admin.address, // Match drop-off location with admin's address
             status: { $in: ['In_Transit', 'Delivered'] }, // Filter for parcels that are in transit or delivered
-        }).populate('driverId');
+        });
         console.log("ReceiveParcels:",receivingDeliveries);
 
 
@@ -309,7 +309,7 @@ router.post('/receiving-deliveries', async (req, res) => {
             const qrData = JSON.stringify({
                 id: parcel._id,
                 driverId: driverId,
-                parcelInfo: parcel,  // Include the entire parcel object
+                  // Include the entire parcel object
             });
 
             // Generate QR code as a data URL
